@@ -4,12 +4,13 @@ import numpy as np
 from PIL import Image
 
 # ----------------------------------------------------------------------------------
-# MODEL LOADING AND SETUP (Same as before)
+# MODEL LOADING AND SETUP
 # ----------------------------------------------------------------------------------
 
 # 1. Load Model (Cached to prevent reloading on every interaction)
 @st.cache_resource
 def load_model():
+    # Make sure this name matches your downloaded file in the project folder
     return tf.keras.models.load_model('plant_village_model.h5')
 
 model = load_model()
@@ -31,11 +32,11 @@ CLASS_NAMES = [
     'Tomato___healthy'
 ]
 
-# Set a threshold to filter out uncertain images (like human hands/non-plant objects)
-CONFIDENCE_THRESHOLD = 0.75 # 75% confidence needed to make a positive ID
+# Set a high threshold to filter out uncertain images and non-plant objects
+CONFIDENCE_THRESHOLD = 0.90 # 90% confidence needed for a positive ID
 
 # ----------------------------------------------------------------------------------
-# UI AND INPUT LOGIC (FIXED)
+# UI AND INPUT LOGIC
 # ----------------------------------------------------------------------------------
 
 st.set_page_config(page_title="Plant Disease Scanner", layout="wide")
@@ -44,7 +45,7 @@ st.markdown("Scan a leaf using your camera or upload an image from your gallery.
 
 st.markdown("---")
 
-# Use columns to present both input options clearly
+# Use columns for both input options
 col1, col2 = st.columns(2)
 
 with col1:
@@ -81,10 +82,18 @@ if source_file is not None:
 
     st.markdown("---")
     
+    # --- TEMPORARY DIAGNOSTIC OUTPUT (For debugging high-confidence errors) ---
+    st.subheader("Model Diagnostics (Temporary)")
+    # Display the first 5 prediction scores (helps see if confidence is split)
+    st.text(f"Raw Prediction Array (First 5 classes): {predictions[0][:5]}")
+    st.text(f"Predicted Index: {predicted_index}")
+    st.text(f"Predicted Class: {predicted_class}")
+    st.markdown("---")
+    
     # --- Misclassification Fix: Apply Confidence Threshold ---
-    if confidence < CONFIDENCE_THRESHOLD:
+    if confidence < CONFIDENCE_THRESHOLD: # Checking against 90%
         st.error("❌ Non-Plant Object Detected or Highly Uncertain Result")
-        st.warning(f"The model is only {confidence:.2f}% sure. Please ensure the image is a clear, single plant leaf and try again.")
+        st.warning(f"The model is only {confidence:.2f}% sure. Please ensure the image is a clear, single plant leaf.")
     else:
         # Display positive result
         clean_name = predicted_class.replace("___", ": ").replace("_", " ")
