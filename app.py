@@ -13,7 +13,7 @@ st.markdown("""
     <style>
     /* Main App Background Color */
     .stApp {
-        background-color: #f0fff0; /* Light Mint Green */
+        background-color: #e0f7fa; /* Light Mint Green */
     }
     /* Header/Title Styling */
     h1 {
