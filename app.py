@@ -33,7 +33,7 @@ CLASS_NAMES = [
 ]
 
 # Set a high threshold to filter out uncertain images and non-plant objects
-CONFIDENCE_THRESHOLD = 0.90 # 90% confidence needed for a positive ID
+CONFIDENCE_THRESHOLD = 90 # 90% confidence needed for a positive ID
 
 # ----------------------------------------------------------------------------------
 # UI AND INPUT LOGIC
