@@ -3,15 +3,18 @@ import tensorflow as tf
 import numpy as np
 from PIL import Image
 
+# ----------------------------------------------------------------------------------
+# MODEL LOADING AND SETUP (Same as before)
+# ----------------------------------------------------------------------------------
+
 # 1. Load Model (Cached to prevent reloading on every interaction)
 @st.cache_resource
 def load_model():
-    # Ensure this name matches your downloaded file in the project folder
     return tf.keras.models.load_model('plant_village_model.h5')
 
 model = load_model()
 
-# 2. Define Classes (Copied directly from your Colab output)
+# 2. Define Classes (Using your provided list)
 CLASS_NAMES = [
     'Apple___Apple_scab', 'Apple___Black_rot', 'Apple___Cedar_apple_rust', 'Apple___healthy', 
     'Blueberry___healthy', 'Cherry_(including_sour)___Powdery_mildew', 'Cherry_(including_sour)___healthy', 
@@ -28,25 +31,46 @@ CLASS_NAMES = [
     'Tomato___healthy'
 ]
 
-# --- UI Setup ---
+# Set a threshold to filter out uncertain images (like human hands/non-plant objects)
+CONFIDENCE_THRESHOLD = 0.75 # 75% confidence needed to make a positive ID
+
+# ----------------------------------------------------------------------------------
+# UI AND INPUT LOGIC (FIXED)
+# ----------------------------------------------------------------------------------
+
 st.set_page_config(page_title="Plant Disease Scanner", layout="wide")
 st.title("🌿 PlantVillage AI Disease Scanner")
-st.markdown("Use your webcam to scan a leaf and identify potential diseases.")
+st.markdown("Scan a leaf using your camera or upload an image from your gallery.")
 
 st.markdown("---")
 
-# 3. Camera Input
-uploaded_file = st.camera_input("Take a picture of the plant leaf")
+# Use columns to present both input options clearly
+col1, col2 = st.columns(2)
 
+with col1:
+    uploaded_file = st.file_uploader("📁 1. Upload Image from Gallery", type=["jpg", "jpeg", "png"])
+
+with col2:
+    camera_input = st.camera_input("📸 2. Scan Leaf with Camera")
+
+# Determine which input source to use
 if uploaded_file is not None:
-    # --- Image Processing ---
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Captured Leaf Image", width=300)
+    source_file = uploaded_file
+elif camera_input is not None:
+    source_file = camera_input
+else:
+    source_file = None
+
+if source_file is not None:
     
-    # Resize to 224x224 (Must match training size)
+    # --- Image Processing ---
+    image = Image.open(source_file)
+    st.image(image, caption="Captured/Uploaded Image", width=300)
+    
+    # Resize and Normalize (Must match training size: 224x224)
     img_array = np.array(image.resize((224, 224)))
-    img_array = img_array / 255.0  # Normalize to 0-1
-    img_array = np.expand_dims(img_array, axis=0) # Add batch dimension
+    img_array = img_array / 255.0 
+    img_array = np.expand_dims(img_array, axis=0) 
 
     # --- Prediction ---
     with st.spinner('Analyzing image...'):
@@ -55,18 +79,22 @@ if uploaded_file is not None:
         predicted_class = CLASS_NAMES[predicted_index]
         confidence = np.max(predictions[0]) * 100
 
-    # --- Display Results ---
     st.markdown("---")
     
-    # Clean up the name for a user-friendly display
-    clean_name = predicted_class.replace("___", ": ").replace("_", " ").replace("Two-spotted spider mite", "Two-Spotted Spider Mite")
-    
-    st.subheader(f"Diagnosis: **{clean_name}**")
-    st.caption(f"Confidence: **{confidence:.2f}%**")
-    
-    if "healthy" in predicted_class.lower():
-        st.balloons()
-        st.success("✅ The plant appears healthy! Keep monitoring it.")
+    # --- Misclassification Fix: Apply Confidence Threshold ---
+    if confidence < CONFIDENCE_THRESHOLD:
+        st.error("❌ Non-Plant Object Detected or Highly Uncertain Result")
+        st.warning(f"The model is only {confidence:.2f}% sure. Please ensure the image is a clear, single plant leaf and try again.")
     else:
-        st.error("🚨 DISEASE DETECTED!")
-        st.warning("Immediate action is recommended. Please isolate the plant and seek specific treatment.")
+        # Display positive result
+        clean_name = predicted_class.replace("___", ": ").replace("_", " ")
+        
+        st.subheader(f"Diagnosis: **{clean_name}**")
+        st.caption(f"Confidence: **{confidence:.2f}%**")
+        
+        if "healthy" in predicted_class.lower():
+            st.balloons()
+            st.success("✅ The plant appears healthy! Keep monitoring it.")
+        else:
+            st.error("🚨 DISEASE DETECTED!")
+            st.info("Immediate action is recommended. Please isolate the plant and seek specific treatment based on the diagnosis.")
